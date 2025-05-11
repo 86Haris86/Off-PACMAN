@@ -2,26 +2,27 @@
 import pygame
 import random
 
-from Setting import muurgrootte , zone1 , zone2 , gebruikte_maze, a_star
+from Hulpfuncties import a_star
 
 #----------------------------------------------------------------------------------------------------------------------#
 
 # Vijand
-snelheid_monster = 0
-snelheid_monster_2 = 0
+snelheid_monster = 6
+snelheid_monster_2 = 6
 
 #----------------------------------------------------------------------------------------------------------------------#
 
-
+#----------------------------------------------------------------------------------------------------------------------#
 
 # Klasse voor vijanden (spoken), met AI gedrag per type
 class Spook:
-    def __init__(self, x, y, scherm, afbeelding, snelheid, type , toegelaten_posities_vijand , actief):
+    def __init__(self, x, y, scherm, afbeelding, snelheid, type , toegelaten_posities_vijand , gebruikte_maze , actief):
         self.scherm = scherm
         self.afbeelding = afbeelding
         self.snelheid = snelheid
         self.type = type
         self.toegelaten_posities_vijand = toegelaten_posities_vijand
+        self.gebruikte_maze = gebruikte_maze
 
         self.oorspronkelijke_type = type
 
@@ -59,12 +60,13 @@ class Spook:
             else:
                 self.x += self.snelheid * dx / afstand
                 self.y += self.snelheid * dy / afstand
-
-    def patrol(self, speler, extra_speler=None):
+# ici jai rajoute gebruikte maze dans patrol ==> modifier dans main loop
+    def patrol(self, speler, gebruikte_maze, muurgrootte, zone1, overdracht1, zone2, overdracht2, extra_speler=None):
         if not self.actief:
             return
 
         else:
+            self.overdracht(zone1, overdracht1, zone2, overdracht2)
             afstand_tot_speler = ((self.x - speler.x) ** 2 + (self.y - speler.y) ** 2) ** 0.5
             dichtbij = afstand_tot_speler < 2 * muurgrootte
 
@@ -141,12 +143,14 @@ class Spook:
                     target = (target_x, target_y)
 
                 # Pad berekenen
-                self.pad = a_star(gebruikte_maze, (self.x, self.y), target, muurgrootte,
+# jai change gebruikte maze, c un input mnt
+                self.pad = a_star(self.gebruikte_maze, (self.x, self.y), target, muurgrootte,
                                   self.toegelaten_posities_vijand)
 
                 if not self.pad:
                     # fallback random doel
                     target = (random.choice(range(29)) * muurgrootte, random.choice(range(19)) * muurgrootte)
+# jai change gebruikte maze, c un input mnt
                     self.pad = a_star(gebruikte_maze, (self.x, self.y), target, muurgrootte,
                                       self.toegelaten_posities_vijand)
 
@@ -159,11 +163,17 @@ class Spook:
         self.pad = []  # Leeg pad bij reset
         self.doel_index = 0  # Zorg dat hij bij volgende patrol direct een nieuw pad berekent
 
-    def overdracht(self):
-        if (self.x, self.y) == zone1:
-            self.x, self.y = zone2
-        elif (self.x, self.y) == zone2:
-            self.x, self.y = zone1
+    def in_zone(self, zone):
+        zone_x, zone_y, zone_breedte, zone_hoogte = zone
+        if None in zone:
+            return False
+        return zone_x <= self.x <= zone_x + zone_breedte and zone_y <= self.y <= zone_y + zone_hoogte
+
+    def overdracht(self, zone1, overdracht1, zone2, overdracht2):
+        if self.in_zone(zone1):
+            self.x, self.y = overdracht1
+        elif self.in_zone(zone2):
+            self.x, self.y = overdracht2
 
     def verander_type(self, nieuw_type):
         self.type = nieuw_type
