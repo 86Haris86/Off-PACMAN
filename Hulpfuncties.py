@@ -1,9 +1,8 @@
 # Import
 import pygame
+import heapq
 
-#from Setting import interval
 interval = 5
-
 
 #----------------------------------------------------------------------------------------------------------------------#
 
@@ -14,8 +13,8 @@ class MazeChecker:
         self.afmeting = afmeting
 
     def is_valid(self, x, y , toegelaten_posities):
-        kol = x // self.afmeting
-        rij = y // self.afmeting
+        kol = int(x // self.afmeting)
+        rij = int(y // self.afmeting)
         if self.maze[rij][kol] in toegelaten_posities:
             return True
         return False
@@ -65,19 +64,54 @@ def toon_levens(screen, levens):
 
 #----------------------------------------------------------------------------------------------------------------------#
 
-def herstart_spel(speler, spoken, levens):
-    # Verlies levens (of pas aan naar 1 per collision als je dat liever hebt)
-    speler.levens -= levens
+def herstart_spel(speler, spoken , levens):
+    speler.levens -= 3
     speler.reset()
-
     for spook in spoken:
         spook.reset()
-        spook.pad = []  # leeg oud pad
-        spook.doel_index = 0  # index terug op 0
-        spook.zet_actief(False)  # deactivate monster
-        # breng het monster weer terug achter de deur
-        spook.appendposities(toegelaten_posities_vijand, deur_van_spoken)
-
+        spook.pad = []         #  Leeg het oude pad
+        spook.doel_index = 0   #  Zet index terug op 0 zodat hij direct herberekent
     pygame.time.delay(1000)
+    # verloren leven , time.delay
 
 #----------------------------------------------------------------------------------------------------------------------#
+# jai rajouter le functie ici au lieux detre dans settings
+def a_star(maze, start, goal, tile_size, toegelaten_posities_vijand):
+    def heuristic(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    rows, cols = len(maze), len(maze[0])
+    start_tile = (start[1] // tile_size, start[0] // tile_size)
+    goal_tile = (goal[1] // tile_size, goal[0] // tile_size)
+
+    frontier = [(0, start_tile)]
+    came_from = {start_tile: None}
+    cost_so_far = {start_tile: 0}
+
+    while frontier:
+        _, current = heapq.heappop(frontier)
+
+        if current == goal_tile:
+            break
+
+        for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+            nx, ny = current[0] + dy, current[1] + dx
+            if 0 <= nx < rows and 0 <= ny < cols and maze[int(nx)][int(ny)] in toegelaten_posities_vijand: # welke vakjes de spook mag bewegen
+                next_tile = (int(nx), int(ny))
+                new_cost = cost_so_far[current] + 1
+                if next_tile not in cost_so_far or new_cost < cost_so_far[next_tile]:
+                    cost_so_far[next_tile] = new_cost
+                    priority = new_cost + heuristic(goal_tile, next_tile)
+                    heapq.heappush(frontier, (priority, next_tile))
+                    came_from[next_tile] = current
+
+    path = []
+    current = goal_tile
+    while current != start_tile:
+        if current in came_from:
+            path.append((current[1] * tile_size + tile_size//2, current[0] * tile_size + tile_size//2))
+            current = came_from[current]
+        else:
+            return []
+    path.reverse()
+    return path
